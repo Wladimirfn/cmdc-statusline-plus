@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0
+
+- **Sub-agents in the bar.** The `sub` segment now names the agent type and, when the agent's
+  own config pins one, its model — e.g. `sub explore claude-haiku-4-5 12.4k`. The ModApi's
+  `subagent_*` events carry no model (and sub-agent requests do not emit `model_request_*`,
+  measured upstream), so a **pinned** model is the only one that can be named; an `inherit`
+  agent shows the type and tokens only. Agents are read from `<project>/.commandcode/agents/*.md`
+  and `~/.commandcode/agents/*.md`.
+- Add `test/statusline.test.mjs` (no dependencies, plain `node`) and run it in the release workflow.
+- Workflow: the security gate now rejects dependencies and install-time lifecycle hooks only
+  (a maintainer `test` script is allowed).
+
 ## 0.1.1
 
 - Docs: installing from npm is now the primary path (`cmdc mods add npm:cmdc-statusline-plus`),

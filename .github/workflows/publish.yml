@@ -39,11 +39,15 @@ jobs:
           npm --version
           node -e "const [M,m,p]=require('child_process').execSync('npm -v').toString().trim().split('.').map(Number);if(M<11||(M===11&&(m<5||(m===5&&p<1)))){console.error('npm >= 11.5.1 is required for trusted publishing');process.exit(1)}"
 
-      # This package ships with ZERO dependencies and ZERO lifecycle scripts on purpose.
-      # Refuse to release if that ever changes: it is the package's main supply-chain guarantee.
-      - name: Security gate (no dependencies, no lifecycle scripts)
+      # This package ships with ZERO dependencies and ZERO install hooks on purpose. Refuse to
+      # release if that ever changes: it is the package's main supply-chain guarantee.
+      # (`test` and other maintainer scripts are fine; only install-time lifecycle hooks are not.)
+      - name: Security gate (no dependencies, no install hooks)
         run: |
-          node -e "const p=require('./package.json');const bad=[...Object.keys(p.dependencies||{}),...Object.keys(p.optionalDependencies||{}),...Object.keys(p.peerDependencies||{}),...Object.keys(p.scripts||{})];if(bad.length){console.error('Refusing to publish, unexpected entries: '+bad.join(', '));process.exit(1)}console.log('OK: no dependencies, no scripts')"
+          node -e "const p=require('./package.json');const deps=[...Object.keys(p.dependencies||{}),...Object.keys(p.optionalDependencies||{}),...Object.keys(p.peerDependencies||{})];const hooks=['preinstall','install','postinstall','prepare'].filter(h=>p.scripts&&p.scripts[h]);const bad=[...deps,...hooks];if(bad.length){console.error('Refusing to publish, unexpected entries: '+bad.join(', '));process.exit(1)}console.log('OK: no dependencies, no install hooks')"
+
+      - name: Test
+        run: npm test
 
       - name: Inspect the tarball
         run: npm pack --dry-run

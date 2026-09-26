@@ -13,7 +13,9 @@ official Mods API (`cmd.ui.setStatus`).
 
 - **Active model** and thinking **effort** (this fork's default).
 - **Context**: gradient bar, token count and % of the model window.
-- **Cache** hit rate, session **cost**, output **speed** (tok/s), **sub-agent** tokens.
+- **Cache** hit rate, session **cost**, output **speed** (tok/s), and **sub-agent** tokens —
+  the `sub` segment names the agent type, plus its model when the agent's config pins one
+  (an `inherit` agent has no model of its own, so only the type and tokens show).
 - **Session name**, **git** branch + change counters, **cwd**.
 - **5-hour rolling and weekly account windows** (used %, reset countdown).
 

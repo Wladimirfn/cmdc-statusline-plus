@@ -40,7 +40,7 @@
 // Narrow terminals: degrade by priority (drop cwd → speed → effort → sub-agents → cache → session name → cost → changes first,
 //         context degrades step by step from bar+token+percent, branch goes last, the model is never dropped), and listen to resize to repaint immediately.
 
-import {createReadStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync} from 'node:fs';
+import {createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync} from 'node:fs';
 import {homedir} from 'node:os';
 import {dirname, join} from 'node:path';
 import {createInterface} from 'node:readline';
@@ -72,7 +72,7 @@ type SessionEvent = {
 	readonly sessionId?: string;
 };
 
-type SubagentStopEvent = {
+type SubagentEvent = {
 	readonly subagentType?: string;
 	readonly tokensUsed?: number;
 };
@@ -96,6 +96,8 @@ type Snapshot = GitInfo & {
 	costUsd: number;
 	speed?: number;
 	subTokens: number;
+	subType?: string;
+	subModel?: string;
 };
 
 type Segments = {
@@ -455,7 +457,12 @@ export function composeLine(
 		push('speed', [paint(ANSI.gray, `${Math.round(snapshot.speed)} tok/s`)]);
 	}
 	if (segments.sub && snapshot.subTokens > 0) {
-		push('sub', [paint(ANSI.gray, `sub ${formatTokens(snapshot.subTokens)}`)]);
+		// Sub-agents: the agent type comes from the subagent_* events; a model can only be named when
+		// the agent's own config pins one (an omitted/`inherit` model is the session model, already shown).
+		const label = [snapshot.subType, snapshot.subModel ? shortModel(snapshot.subModel) : '']
+			.filter(Boolean)
+			.join(' ');
+		push('sub', [paint(ANSI.gray, `sub ${label ? `${label} ` : ''}${formatTokens(snapshot.subTokens)}`)]);
 	}
 	if (segments.name && snapshot.title) {
 		push('name', [paint(ANSI.bold, truncateToWidth(snapshot.title, TITLE_COLUMNS))]);
@@ -884,6 +891,56 @@ export function readUserConfig(): {model?: string; reasoningEffort: Record<strin
 	}
 }
 
+// ── sub-agent declared models ───────────────────────────────────────────────────────
+// The subagent_* events carry the agent type and token counts, never a model (and sub-agent
+// requests do not go through model_request_*, measured). The only model we can name is one the
+// agent's own config pins; an omitted or `inherit` model is the session model, already shown.
+function frontmatterOf(text: string): string | undefined {
+	return /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1];
+}
+
+function unquote(value: string): string {
+	return value.replace(/^["']|["']$/g, '').trim();
+}
+
+export function agentModelFromMarkdown(text: string): string | undefined {
+	const frontmatter = frontmatterOf(text);
+	if (frontmatter === undefined) return undefined;
+	const raw = /^model:\s*(.+)$/m.exec(frontmatter)?.[1];
+	if (raw === undefined) return undefined;
+	const model = unquote(raw);
+	return model.length === 0 || model.toLowerCase() === 'inherit' ? undefined : model;
+}
+
+// Agent id -> pinned model, from `<project>/.commandcode/agents/*.md` and `~/.commandcode/agents/*.md`.
+// Each agent is indexed by BOTH its file name and its frontmatter `name`, so it resolves whichever
+// id the host reports as subagentType. Agents without a pinned model are simply absent.
+export function readAgentModels(cwd: string): Record<string, string> {
+	const models: Record<string, string> = {};
+	for (const dir of [join(cwd, '.commandcode', 'agents'), join(homedir(), '.commandcode', 'agents')]) {
+		let entries: string[];
+		try {
+			entries = readdirSync(dir);
+		} catch {
+			continue;
+		}
+		for (const entry of entries) {
+			if (!entry.endsWith('.md')) continue;
+			try {
+				const text = readFileSync(join(dir, entry), 'utf8');
+				const model = agentModelFromMarkdown(text);
+				if (model === undefined) continue;
+				models[entry.replace(/\.md$/, '')] = model;
+				const name = /^name:\s*(.+)$/m.exec(frontmatterOf(text) ?? '')?.[1];
+				if (name !== undefined && unquote(name).length > 0) models[unquote(name)] = model;
+			} catch {
+				// an unreadable agent file is not a statusline failure
+			}
+		}
+	}
+	return models;
+}
+
 // ── ui copy (lang key: en) ──────────────────────────────────────────────────────────
 // Flag descriptions and the version-gate notice are produced at registration time, when getFlag does not exist yet — they only
 // look at lang in the config file; everything else follows the effective lang live (write lang=en and the next report is English). The two
@@ -975,6 +1032,14 @@ export default function (cmd: ModApi): void {
 		cmd.cwd,
 	);
 	const fileLang = langOf(config['lang']) ?? 'en';
+
+	// Sub-agent id -> pinned model (see readAgentModels). Resolved lazily and re-read at each session
+	// start, since agents load on the next turn; a missing file is never fatal.
+	let agentModelCache: Record<string, string> | undefined;
+	const agentModels = (): Record<string, string> => {
+		if (agentModelCache === undefined) agentModelCache = readAgentModels(cmd.cwd);
+		return agentModelCache;
+	};
 
 	// Version gate: this mod does not support old hosts and does not degrade.
 	// A readable version that is genuinely too old → notify to upgrade and disable immediately, not even registering flags or commands —
@@ -1450,6 +1515,7 @@ export default function (cmd: ModApi): void {
 				requestStartedAt = 0;
 			}
 			seedFromKnownSources();
+			agentModelCache = undefined;
 			startTimer();
 			startLimitsTimer();
 			// Idempotent: if start fires again after a session swap, avoid stacking listeners
@@ -1522,9 +1588,24 @@ export default function (cmd: ModApi): void {
 
 	// Sub-agent model requests do not go through model_request_* (measured), so their usage can only be folded in from subagent_stop;
 	// the product does not count sub-agent tokens in the transcript either, so only tokens are accumulated here, not exact cost.
+	// The events never carry a model, so `sub` can only name the one the agent's own config pins.
+	cmd.on('subagent_start', event => {
+		if (!forCurrentSession(event)) return;
+		const data = event as unknown as SubagentEvent;
+		if (typeof data.subagentType === 'string' && data.subagentType.length > 0) {
+			session.snapshot.subType = data.subagentType;
+			session.snapshot.subModel = agentModels()[data.subagentType];
+			refresh();
+		}
+	});
+
 	cmd.on('subagent_stop', event => {
 		if (!forCurrentSession(event)) return;
-		const data = event as unknown as SubagentStopEvent;
+		const data = event as unknown as SubagentEvent;
+		if (typeof data.subagentType === 'string' && data.subagentType.length > 0) {
+			session.snapshot.subType = data.subagentType;
+			session.snapshot.subModel = agentModels()[data.subagentType];
+		}
 		if (typeof data.tokensUsed === 'number' && data.tokensUsed > 0) {
 			session.snapshot.subTokens += data.tokensUsed;
 			refresh();
