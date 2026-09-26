@@ -2,7 +2,10 @@
 // It imports the mod directly (Node strips the types) and exercises the pure helpers, so the
 // sub-agent segment and the agent-config parsing are verified without a live cmdc.
 import assert from 'node:assert/strict';
-import {agentModelFromMarkdown, composeLine, formatTokens} from '../index.ts';
+import {mkdirSync, mkdtempSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {agentModelFromMarkdown, composeLine, formatTokens, readAgentModels} from '../index.ts';
 
 const SEGMENTS = {
 	model: true,
@@ -57,5 +60,17 @@ assert.equal(agentModelFromMarkdown('---\nmodel: inherit\n---\n'), undefined);
 assert.equal(agentModelFromMarkdown('---\nmodel: INHERIT\n---\n'), undefined);
 assert.equal(agentModelFromMarkdown('---\nname: reviewer\n---\n'), undefined);
 assert.equal(agentModelFromMarkdown('no frontmatter here'), undefined);
+
+// 5) readAgentModels reads <project>/.commandcode/agents and indexes by file name and `name:`
+const project = mkdtempSync(join(tmpdir(), 'statusline-test-'));
+mkdirSync(join(project, '.commandcode', 'agents'), {recursive: true});
+writeFileSync(
+	join(project, '.commandcode', 'agents', 'zz-pinned.md'),
+	'---\nname: zz-pinned\nmodel: claude-haiku-4-5\n---\nprompt body\n',
+);
+writeFileSync(join(project, '.commandcode', 'agents', 'zz-inherit.md'), '---\nname: zz-inherit\nmodel: inherit\n---\n');
+const models = readAgentModels(project);
+assert.equal(models['zz-pinned'], 'claude-haiku-4-5');
+assert.equal(models['zz-inherit'], undefined);
 
 console.log('ok - statusline tests passed');
