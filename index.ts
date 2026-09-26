@@ -1365,13 +1365,13 @@ export default function (cmd: ModApi): void {
 		}
 	};
 
-	const composer = (): string =>
+	const composer = (maxWidth = terminalWidth()): string =>
 		composeLine(session.snapshot, segments(), {
 			color: colorEnabled(),
 			rawModel: flag('raw-model'),
 			mode: colorMode(),
 			barWidth: barWidth(),
-			maxWidth: terminalWidth(),
+			maxWidth,
 			cwd: cwdName(),
 		});
 
@@ -1462,11 +1462,21 @@ export default function (cmd: ModApi): void {
 	// refresh() used to await git before painting, so an 8 second git status stalled model/cost/context for 8 seconds as well.
 	const paint = (): void => {
 		if (!rendersFooter()) return;
-		// The brand mark leads the model without claiming its own separator column.
-		const body = composer();
-		const line = [body ? `${sgr(ANSI.magenta, BRAND)} ${body}` : '', usageText()]
-			.filter(Boolean)
-			.join(sgr(ANSI.dim, SEP));
+		// The brand mark and the usage suffix are appended AFTER composeLine, so reserve their width
+		// out of the terminal budget first: composeLine only knows how to degrade the body, and a line
+		// that overflows wraps in the footer, leaving stray rows underneath it.
+		const width = terminalWidth();
+		const brand = sgr(ANSI.magenta, BRAND);
+		const separator = sgr(ANSI.dim, SEP);
+		let usage = usageText();
+		let reserved = usage ? visibleLength(brand) + 1 + visibleLength(separator) + visibleLength(usage) : 0;
+		if (width > 0 && reserved >= width) {
+			// Not enough room for the account windows at this terminal width: drop them rather than overflow.
+			usage = '';
+			reserved = 0;
+		}
+		const body = composer(width > 0 ? Math.max(1, width - reserved) : width);
+		const line = [body ? `${brand} ${body}` : '', usage].filter(Boolean).join(separator);
 		cmd.ui.setStatus(line || null);
 	};
 

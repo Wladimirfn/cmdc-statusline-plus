@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import {mkdirSync, mkdtempSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {agentModelFromMarkdown, composeLine, formatTokens, readAgentModels} from '../index.ts';
+import {agentModelFromMarkdown, composeLine, formatTokens, readAgentModels, visibleLength} from '../index.ts';
 
 const SEGMENTS = {
 	model: true,
@@ -72,5 +72,27 @@ writeFileSync(join(project, '.commandcode', 'agents', 'zz-inherit.md'), '---\nna
 const models = readAgentModels(project);
 assert.equal(models['zz-pinned'], 'claude-haiku-4-5');
 assert.equal(models['zz-inherit'], undefined);
+
+// 6) composeLine honours maxWidth — the budget paint() reserves for the brand + usage suffix
+const rich = {
+	...SNAPSHOT,
+	model: 'deepseek/deepseek-v4.1-flash',
+	effort: 'high',
+	contextTokens: 491000,
+	cacheHit: 99,
+	costUsd: 0.109,
+	subType: 'fast-explore',
+	subModel: 'deepseek/deepseek-v4-flash-fast',
+};
+const unbounded = composeLine(rich, SEGMENTS, {...OPTIONS, maxWidth: 0});
+const squeezed = composeLine(rich, SEGMENTS, {...OPTIONS, maxWidth: 46});
+assert.ok(
+	visibleLength(squeezed) <= 46,
+	`expected a line within 46 columns, got ${visibleLength(squeezed)}: ${squeezed}`,
+);
+assert.ok(
+	visibleLength(squeezed) < visibleLength(unbounded),
+	`expected squeezing to shorten the line: ${squeezed}`,
+);
 
 console.log('ok - statusline tests passed');

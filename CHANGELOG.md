@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.1
+
+- **Fix: the footer grew extra blank rows.** The brand mark and the account-window suffix are
+  appended *after* the width-fitting step, so a long line (a pinned sub-agent model, growing
+  tokens/cost) overflowed the terminal and wrapped onto more rows. Their width is now reserved
+  out of the budget, and the windows are dropped outright when the terminal is too narrow — which
+  also restores `composeLine`'s normal segment degradation.
+
 ## 0.2.0
 
 - **Sub-agents in the bar.** The `sub` segment now names the agent type and, when the agent's
