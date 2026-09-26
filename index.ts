@@ -1033,14 +1033,6 @@ export default function (cmd: ModApi): void {
 	);
 	const fileLang = langOf(config['lang']) ?? 'en';
 
-	// Sub-agent id -> pinned model (see readAgentModels). Resolved lazily and re-read at each session
-	// start, since agents load on the next turn; a missing file is never fatal.
-	let agentModelCache: Record<string, string> | undefined;
-	const agentModels = (): Record<string, string> => {
-		if (agentModelCache === undefined) agentModelCache = readAgentModels(cmd.cwd);
-		return agentModelCache;
-	};
-
 	// Version gate: this mod does not support old hosts and does not degrade.
 	// A readable version that is genuinely too old → notify to upgrade and disable immediately, not even registering flags or commands —
 	// better to do nothing at all than to leave a footer that 'reacts but is wrong'.
@@ -1515,7 +1507,6 @@ export default function (cmd: ModApi): void {
 				requestStartedAt = 0;
 			}
 			seedFromKnownSources();
-			agentModelCache = undefined;
 			startTimer();
 			startLimitsTimer();
 			// Idempotent: if start fires again after a session swap, avoid stacking listeners
@@ -1594,7 +1585,7 @@ export default function (cmd: ModApi): void {
 		const data = event as unknown as SubagentEvent;
 		if (typeof data.subagentType === 'string' && data.subagentType.length > 0) {
 			session.snapshot.subType = data.subagentType;
-			session.snapshot.subModel = agentModels()[data.subagentType];
+			session.snapshot.subModel = readAgentModels(cmd.cwd)[data.subagentType];
 			refresh();
 		}
 	});
@@ -1604,7 +1595,7 @@ export default function (cmd: ModApi): void {
 		const data = event as unknown as SubagentEvent;
 		if (typeof data.subagentType === 'string' && data.subagentType.length > 0) {
 			session.snapshot.subType = data.subagentType;
-			session.snapshot.subModel = agentModels()[data.subagentType];
+			session.snapshot.subModel = readAgentModels(cmd.cwd)[data.subagentType];
 		}
 		if (typeof data.tokensUsed === 'number' && data.tokensUsed > 0) {
 			session.snapshot.subTokens += data.tokensUsed;
