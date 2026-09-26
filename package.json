@@ -1,0 +1,42 @@
+{
+	"name": "cmdc-statusline-plus",
+	"version": "0.1.0",
+	"description": "One-line status bar mod for Command Code (cmdc): active model, gradient context bar, cache hit rate, session cost, sub-agent tokens, and the account's 5-hour / weekly usage windows.",
+	"type": "module",
+	"commandcode": {
+		"mods": [
+			"./index.ts"
+		]
+	},
+	"files": [
+		"index.ts",
+		"mod-api.d.ts",
+		"README.md",
+		"AGENTS.md",
+		"LICENSE",
+		"CHANGELOG.md"
+	],
+	"keywords": [
+		"commandcode",
+		"command-code",
+		"cmdc",
+		"statusline",
+		"status-line",
+		"mod",
+		"usage",
+		"limits"
+	],
+	"author": "Wladimirfn",
+	"license": "MIT",
+	"engines": {
+		"node": ">=22.18"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Wladimirfn/cmdc-statusline-plus.git"
+	},
+	"homepage": "https://github.com/Wladimirfn/cmdc-statusline-plus#readme",
+	"bugs": {
+		"url": "https://github.com/Wladimirfn/cmdc-statusline-plus/issues"
+	}
+}
