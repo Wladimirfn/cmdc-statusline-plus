@@ -1,5 +1,7 @@
 # cmdc-statusline-plus
 
+[![npm version](https://img.shields.io/npm/v/cmdc-statusline-plus.svg)](https://www.npmjs.com/package/cmdc-statusline-plus) [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
 A single-line status bar for **Command Code** (`cmdc`), rendered under the prompt through the
 official Mods API (`cmd.ui.setStatus`).
 
@@ -18,10 +20,10 @@ official Mods API (`cmd.ui.setStatus`).
 ## Install
 
 ```sh
-cmdc mods add Wladimirfn/cmdc-statusline-plus -g      # user scope (all projects)
-cmdc mods add Wladimirfn/cmdc-statusline-plus         # project scope
-# or, once published to npm:
-cmdc mods add npm:cmdc-statusline-plus -g
+cmdc mods add npm:cmdc-statusline-plus -g   # from npm, user scope (all projects)
+cmdc mods add cmdc-statusline-plus          # from npm, project scope
+# or straight from GitHub:
+cmdc mods add Wladimirfn/cmdc-statusline-plus -g
 ```
 
 Then restart `cmdc` or run `/reload`. Requires Command Code ≥ 1.10.0.
