@@ -1462,7 +1462,9 @@ export default function (cmd: ModApi): void {
 	// refresh() used to await git before painting, so an 8 second git status stalled model/cost/context for 8 seconds as well.
 	const paint = (): void => {
 		if (!rendersFooter()) return;
-		const line = [sgr(ANSI.magenta, BRAND), composer(), usageText()]
+		// The brand mark leads the model without claiming its own separator column.
+		const body = composer();
+		const line = [body ? `${sgr(ANSI.magenta, BRAND)} ${body}` : '', usageText()]
 			.filter(Boolean)
 			.join(sgr(ANSI.dim, SEP));
 		cmd.ui.setStatus(line || null);
