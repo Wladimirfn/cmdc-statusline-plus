@@ -30,7 +30,9 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
+          # Deliberately no registry-url/token: with one, actions/setup-node writes an .npmrc
+          # carrying a placeholder NODE_AUTH_TOKEN, which can shadow OIDC. Trusted publishing
+          # needs no token at all, so leaving it out guarantees OIDC is the only auth path.
           package-manager-cache: false # never cache in a release build
 
       - name: Toolchain must support trusted publishing
