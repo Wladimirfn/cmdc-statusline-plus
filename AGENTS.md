@@ -31,6 +31,13 @@ host through `commandcode.mods`.
 
 ## Releasing
 
+Publishing is tokenless: the `publish` workflow uses npm **trusted publishing (OIDC)**, so no
+npm token exists anywhere. Never add one, and never add dependencies or lifecycle scripts —
+the workflow refuses to publish if it finds either.
+
 1. Bump `version` in `package.json` and add a `CHANGELOG.md` entry.
 2. `git add -A && git commit -m "..." && git push`.
-3. npm (optional, requires `npm login`): `npm publish`.
+3. Push the matching tag: `git tag v<version> && git push origin v<version>`. The `publish`
+   workflow then publishes to npm with automatic provenance.
+4. First release only: a trusted publisher can only be configured for a package that already
+   exists, so the very first publish is interactive (`npm login` → `npm publish`), then log out.

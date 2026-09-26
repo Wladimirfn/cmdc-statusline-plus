@@ -64,6 +64,18 @@ in `~/.commandcode/auth.json`), refreshed every 120 s.
 > (network, 401, missing fields) just clears that segment; it never throws and never breaks
 > the bar.
 
+## Security
+
+Built to be as un-attackable as an npm package can be:
+
+- **Zero dependencies, zero install scripts** — nothing third-party is pulled in and nothing
+  executes on a consumer's machine at install/update time.
+- **Tokenless releases** via npm **trusted publishing (OIDC)** from GitHub Actions, with
+  **provenance** attestations generated automatically, so the published tarball is verifiably
+  built from this repository.
+- The mod makes **one** outbound request (your own account usage endpoint) and never embeds,
+  logs or transmits secrets. Details in [SECURITY.md](./SECURITY.md).
+
 ## Credits
 
 Fork of [`cmdc-statusline`](https://github.com/holtwood/cmdc-statusline) by holtwood (MIT).

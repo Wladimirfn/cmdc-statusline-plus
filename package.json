@@ -3,6 +3,9 @@
 	"version": "0.1.0",
 	"description": "One-line status bar mod for Command Code (cmdc): active model, gradient context bar, cache hit rate, session cost, sub-agent tokens, and the account's 5-hour / weekly usage windows.",
 	"type": "module",
+	"publishConfig": {
+		"access": "public"
+	},
 	"commandcode": {
 		"mods": [
 			"./index.ts"
@@ -13,6 +16,7 @@
 		"mod-api.d.ts",
 		"README.md",
 		"AGENTS.md",
+		"SECURITY.md",
 		"LICENSE",
 		"CHANGELOG.md"
 	],

@@ -1,0 +1,52 @@
+name: publish
+
+# Publishes to npm using OIDC trusted publishing: no npm token is ever stored in the repo
+# or in GitHub secrets, so there is nothing for a credential-stealing worm to take.
+#
+# One-time setup on npmjs.com (package -> Settings -> Trusted publishing):
+#   Organization or user : Wladimirfn
+#   Repository           : cmdc-statusline-plus
+#   Workflow filename    : publish.yml
+# Then, on the same page (Settings -> Publishing access), choose
+#   "Require two-factor authentication and disallow tokens".
+#
+# Release: bump the version, push, then push a matching tag (e.g. v0.1.1).
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # OIDC: required for trusted publishing (+ automatic provenance)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false # never cache in a release build
+
+      - name: Toolchain must support trusted publishing
+        run: |
+          node --version
+          npm --version
+          node -e "const [M,m,p]=require('child_process').execSync('npm -v').toString().trim().split('.').map(Number);if(M<11||(M===11&&(m<5||(m===5&&p<1)))){console.error('npm >= 11.5.1 is required for trusted publishing');process.exit(1)}"
+
+      # This package ships with ZERO dependencies and ZERO lifecycle scripts on purpose.
+      # Refuse to release if that ever changes: it is the package's main supply-chain guarantee.
+      - name: Security gate (no dependencies, no lifecycle scripts)
+        run: |
+          node -e "const p=require('./package.json');const bad=[...Object.keys(p.dependencies||{}),...Object.keys(p.optionalDependencies||{}),...Object.keys(p.peerDependencies||{}),...Object.keys(p.scripts||{})];if(bad.length){console.error('Refusing to publish, unexpected entries: '+bad.join(', '));process.exit(1)}console.log('OK: no dependencies, no scripts')"
+
+      - name: Inspect the tarball
+        run: npm pack --dry-run
+
+      - name: Publish (trusted publishing; provenance is automatic)
+        run: npm publish
