@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Docs: installing from npm is now the primary path (`cmdc mods add npm:cmdc-statusline-plus`),
+  plus npm and license badges. No code changes to the mod.
+- First release published through npm trusted publishing (OIDC) from GitHub Actions, so it
+  carries a provenance attestation.
+
 ## 0.1.0
 
 Fork of [`cmdc-statusline`](https://github.com/holtwood/cmdc-statusline) (MIT) with:
